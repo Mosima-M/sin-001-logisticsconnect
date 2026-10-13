@@ -15,7 +15,10 @@ public class IngestionServiceApp {
 
         app.get("/health", ctx -> ctx.result("OK"));
         List<String[]> hubs = readCsv();
-        System.out.println("Loaded hubs: " + hubs.size());
+//        System.out.println("Loaded hubs: " + hubs.size());
+        app.get("/hubs", ctx ->{
+            ctx.json(hubs);
+        });
         // TODO: read and clean src/main/resources/hubs-global.csv (hubs, sorting centers, regional districts data —
         // trim whitespace, fix casing, normalize dates/booleans) and expose the
         // cleaned records here for the other services to consume.
