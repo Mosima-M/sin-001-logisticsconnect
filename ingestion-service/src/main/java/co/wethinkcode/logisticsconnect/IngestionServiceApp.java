@@ -45,7 +45,7 @@ public class IngestionServiceApp {
         return result.trim();
     }
 
-    private static List<Hub> readCsv() throws Exception {
+    static List<Hub> readCsv() throws Exception {
         Set<String> seenHubIds = new HashSet<>();
         List<Hub> cleanedHubs = new ArrayList<>();
         InputStream file = IngestionServiceApp.class.getResourceAsStream("/hubs-global.csv");
