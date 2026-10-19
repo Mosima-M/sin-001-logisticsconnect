@@ -64,4 +64,50 @@ class DelayStageServiceAppTest {
         assertEquals(200, response.statusCode());
         assertTrue(response.body().contains("\"stage\":0"));
     }
+
+    @Test
+    void validPostUpdatesDelayStage() throws Exception {
+        HttpRequest postRequest = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/delay-stage/H-501"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"stage\":3}"))
+                .build();
+
+        HttpResponse<String> postResponse = client.send(
+                postRequest,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(200, postResponse.statusCode());
+
+        HttpRequest getRequest = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/delay-stage/H-501"))
+                .GET()
+                .build();
+
+        HttpResponse<String> getResponse = client.send(
+                getRequest,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(200, getResponse.statusCode());
+        assertTrue(getResponse.body().contains("\"stage\":3"));
+    }
+
+    @Test
+    void rejectsStageOutsideValidRange() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/delay-stage/H-501"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"stage\":9}"))
+                .build();
+
+        HttpResponse<String> response = client.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(400, response.statusCode());
+        assertEquals("Stage must be between 0 and 8", response.body());
+    }
 }
