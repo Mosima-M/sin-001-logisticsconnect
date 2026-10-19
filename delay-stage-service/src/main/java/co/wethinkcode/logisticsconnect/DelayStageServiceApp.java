@@ -30,7 +30,6 @@ public class DelayStageServiceApp {
         app.post("/delay-stage/{hubId}", ctx -> {
             String hubId = ctx.pathParam("hubId").toUpperCase();
             String requestBody = ctx.body();
-            System.out.println(requestBody);
             try {
                 JsonNode newStage = mapper.readTree(requestBody);
 

@@ -57,9 +57,7 @@ public class IngestionServiceApp {
              CSVReader csvReader = new CSVReader(reader)) {
 
             String[] header = csvReader.readNext();
-            System.out.println("CSV header: " + Arrays.toString(header));
             String[] row = csvReader.readNext();
-            int recordCounter = 0;
 
             while (row != null) {
                 for (int i = 0; i < row.length; i++) {
@@ -104,18 +102,11 @@ public class IngestionServiceApp {
                     row[2] = normalizeSortingCenter(row[2]);
                     Hub newHub = new Hub(row[0], row[1], row[2], activeStatus);
                     cleanedHubs.add(newHub);
-                    System.out.println(Arrays.toString(row));
                 }
 
                 row = csvReader.readNext();
-                recordCounter += 1;
             }
-
-            System.out.println("Total records read: " + recordCounter);
-            System.out.println("Unique records stored: " + cleanedHubs.size());
         }
-
         return cleanedHubs;
     }
-
 }

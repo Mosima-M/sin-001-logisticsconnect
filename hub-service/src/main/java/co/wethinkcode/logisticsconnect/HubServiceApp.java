@@ -57,7 +57,5 @@ public class HubServiceApp {
                 ctx.status(502).result("Ingestion Service unavailable");
             }
         });
-        // TODO (Serves provinces and sorting centers (place-name source of truth).)
-        // Add domain endpoints for hub-service here.
     }
 }
