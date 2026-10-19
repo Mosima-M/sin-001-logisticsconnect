@@ -58,13 +58,10 @@ public class TransitServiceApp {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode delayData = mapper.readTree(delayResponse.body());
                 int stage = delayData.get("stage").asInt();
-                int baseMinutes = 60;
-                int delayMinutes = stage * 15;
+                int[] arrivalWindow = EtaCalculator.calculate(stage);
 
-                int estimatedMinutes = baseMinutes + delayMinutes;
-
-                int earliestMinutes = estimatedMinutes - 10;
-                int latestMinutes = estimatedMinutes + 10;
+                int earliestMinutes = arrivalWindow[0];
+                int latestMinutes = arrivalWindow[1];
                 ctx.json(Map.of(
                         "hubId", hubId,
                         "delayStage", stage,
