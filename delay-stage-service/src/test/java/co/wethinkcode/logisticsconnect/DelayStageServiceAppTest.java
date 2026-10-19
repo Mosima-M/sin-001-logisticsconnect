@@ -110,4 +110,38 @@ class DelayStageServiceAppTest {
         assertEquals(400, response.statusCode());
         assertEquals("Stage must be between 0 and 8", response.body());
     }
+
+    @Test
+    void rejectsMalformedJson() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/delay-stage/H-501"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"stage\":}"))
+                .build();
+
+        HttpResponse<String> response = client.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(400, response.statusCode());
+        assertEquals("Invalid Json", response.body());
+    }
+
+    @Test
+    void rejectsNonIntegerStage() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/delay-stage/H-501"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"stage\":\"three\"}"))
+                .build();
+
+        HttpResponse<String> response = client.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(400, response.statusCode());
+        assertEquals("Stage must be an Integer", response.body());
+    }
 }
