@@ -9,9 +9,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class DelayStageServiceApp {
-
     public static void main(String[] args) {
-        Javalin app = Javalin.create().start(7052);
+        createApp().start(7052);
+    }
+    public static Javalin createApp() {
+        Javalin app = Javalin.create();
+
         Map<String, Integer> delayStages = new ConcurrentHashMap<>();
         ObjectMapper mapper = new ObjectMapper();
         app.get("/health", ctx -> ctx.result("OK"));
@@ -48,12 +51,13 @@ public class DelayStageServiceApp {
                 } else {
                     ctx.status(400).result("Stage must be between 0 and 8");
                 }
-            }
-            catch(JsonProcessingException e){
+            } catch (JsonProcessingException e) {
                 ctx.status(400).result("Invalid Json");
             }
         });
+        return app;
     }
+
 }
 
 
