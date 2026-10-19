@@ -11,6 +11,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DelayStageServiceAppTest {
 
@@ -30,5 +31,37 @@ class DelayStageServiceAppTest {
     void tearDown() {
         app.stop();
         client.close();
+    }
+
+    @Test
+    void healthEndpointReturnsOk() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/health"))
+                .GET()
+                .build();
+
+        HttpResponse<String> response = client.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(200, response.statusCode());
+        assertEquals("OK", response.body());
+    }
+
+    @Test
+    void unknownHubDefaultsToStageZero() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/delay-stage/H-501"))
+                .GET()
+                .build();
+
+        HttpResponse<String> response = client.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(200, response.statusCode());
+        assertTrue(response.body().contains("\"stage\":0"));
     }
 }
