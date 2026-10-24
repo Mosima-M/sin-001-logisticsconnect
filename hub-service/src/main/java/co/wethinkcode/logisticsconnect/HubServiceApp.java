@@ -8,26 +8,23 @@ public class HubServiceApp {
     public static void main(String[] args) {
 
         IngestionClient ingestionClient = new IngestionClient();
-
+        HubLookupService hubLookupService = new HubLookupService(ingestionClient);
         Javalin app = Javalin.create();
 
         app.get("/health", ctx -> ctx.result("OK"));
 
         app.get("/hubs/{hubId}", ctx -> {
-
             String hubId = ctx.pathParam("hubId");
 
             try {
-                JsonNode hubs = ingestionClient.fetchHubs();
+                JsonNode hub = hubLookupService.findHubById(hubId);
 
-                for (JsonNode hub : hubs) {
-                    if (hubId.equalsIgnoreCase(hub.path("hubId").asText())) {
-                        ctx.json(hub);
-                        return;
-                    }
+                if (hub == null) {
+                    ctx.status(404).result("Hub not found");
+                    return;
                 }
 
-                ctx.status(404).result("Hub not found");
+                ctx.json(hub);
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -37,7 +34,6 @@ public class HubServiceApp {
                 ctx.status(502).result("Ingestion Service unavailable");
             }
         });
-
         app.start(7051);
     }
 }
