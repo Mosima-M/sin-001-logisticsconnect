@@ -9,14 +9,14 @@ class IngestionServiceAppTest {
 
     @Test
     void shouldLoadAllHubsFromCsv() throws Exception {
-        List<Hub> hubs = IngestionServiceApp.readCsv();
+        List<Hub> hubs = HubCsvReader.readCsv();
 
         assertEquals(18, hubs.size());
     }
 
     @Test
     void shouldNormalizeHubIdsToUppercase() throws Exception {
-        List<Hub> hubs = IngestionServiceApp.readCsv();
+        List<Hub> hubs = HubCsvReader.readCsv();
 
         Hub hub = hubs.get(1);
 
@@ -25,7 +25,7 @@ class IngestionServiceAppTest {
 
     @Test
     void shouldNormalizeProvinceNames() throws Exception {
-        List<Hub> hubs = IngestionServiceApp.readCsv();
+        List<Hub> hubs = HubCsvReader.readCsv();
 
         Hub hub = hubs.get(3);
 
@@ -34,7 +34,7 @@ class IngestionServiceAppTest {
 
     @Test
     void shouldNormalizeSortingCenter() throws Exception {
-        List<Hub> hubs = IngestionServiceApp.readCsv();
+        List<Hub> hubs = HubCsvReader.readCsv();
 
         Hub hub = hubs.get(5);
 
@@ -43,7 +43,7 @@ class IngestionServiceAppTest {
 
     @Test
     void shouldConvertActiveStatusToBoolean() throws Exception {
-        List<Hub> hubs = IngestionServiceApp.readCsv();
+        List<Hub> hubs = HubCsvReader.readCsv();
 
         assertEquals(Boolean.TRUE, hubs.get(0).getActive());
         assertEquals(Boolean.FALSE, hubs.get(2).getActive());
