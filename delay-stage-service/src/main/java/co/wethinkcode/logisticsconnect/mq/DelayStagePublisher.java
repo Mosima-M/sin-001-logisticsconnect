@@ -9,7 +9,7 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 import javax.jms.Topic;
 
-public class DelayStagePublisher {
+public class DelayStagePublisher implements EventPublisher {
 
     private final ActiveMQConnectionFactory connectionFactory;
 
@@ -17,7 +17,7 @@ public class DelayStagePublisher {
         this.connectionFactory =
                 new ActiveMQConnectionFactory(MqConfig.BROKER_URL);
     }
-
+    @Override
     public void publish(String hubId, int stage) throws JMSException {
 
         Connection connection = null;

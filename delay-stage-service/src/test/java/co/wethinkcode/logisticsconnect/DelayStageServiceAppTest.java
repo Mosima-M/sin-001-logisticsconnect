@@ -1,5 +1,7 @@
+
 package co.wethinkcode.logisticsconnect;
 
+import co.wethinkcode.logisticsconnect.mq.EventPublisher;
 import io.javalin.Javalin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,10 +20,28 @@ class DelayStageServiceAppTest {
     private Javalin app;
     private HttpClient client;
     private String baseUrl;
+    private FakePublisher publisher;
+
+    // Fake implementation: no ActiveMQ connection needed
+    private static class FakePublisher implements EventPublisher {
+
+        private String lastHubId;
+        private int lastStage;
+        private int publishCount;
+
+        @Override
+        public void publish(String hubId, int stage) {
+            lastHubId = hubId;
+            lastStage = stage;
+            publishCount++;
+        }
+    }
 
     @BeforeEach
     void setUp() {
-        app = DelayStageServiceApp.createApp().start(0);
+        publisher = new FakePublisher();
+
+        app = DelayStageServiceApp.createApp(publisher).start(0);
         client = HttpClient.newHttpClient();
 
         baseUrl = "http://localhost:" + app.port();
@@ -92,6 +112,11 @@ class DelayStageServiceAppTest {
 
         assertEquals(200, getResponse.statusCode());
         assertTrue(getResponse.body().contains("\"stage\":3"));
+
+        // Verify that the event was published
+        assertEquals(1, publisher.publishCount);
+        assertEquals("H-501", publisher.lastHubId);
+        assertEquals(3, publisher.lastStage);
     }
 
     @Test
@@ -109,6 +134,8 @@ class DelayStageServiceAppTest {
 
         assertEquals(400, response.statusCode());
         assertEquals("Stage must be between 0 and 8", response.body());
+
+        assertEquals(0, publisher.publishCount);
     }
 
     @Test
@@ -126,6 +153,8 @@ class DelayStageServiceAppTest {
 
         assertEquals(400, response.statusCode());
         assertEquals("Invalid Json", response.body());
+
+        assertEquals(0, publisher.publishCount);
     }
 
     @Test
@@ -133,7 +162,9 @@ class DelayStageServiceAppTest {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/delay-stage/H-501"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("{\"stage\":\"three\"}"))
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"stage\":\"three\"}"
+                ))
                 .build();
 
         HttpResponse<String> response = client.send(
@@ -143,5 +174,8 @@ class DelayStageServiceAppTest {
 
         assertEquals(400, response.statusCode());
         assertEquals("Stage must be an Integer", response.body());
+
+        assertEquals(0, publisher.publishCount);
     }
 }
+

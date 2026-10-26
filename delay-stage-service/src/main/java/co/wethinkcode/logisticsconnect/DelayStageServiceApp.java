@@ -1,5 +1,8 @@
+
 package co.wethinkcode.logisticsconnect;
 
+import co.wethinkcode.logisticsconnect.mq.DelayStagePublisher;
+import co.wethinkcode.logisticsconnect.mq.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,7 +16,13 @@ public class DelayStageServiceApp {
         createApp().start(7052);
     }
 
+    // Production uses the real ActiveMQ publisher
     public static Javalin createApp() {
+        return createApp(new DelayStagePublisher());
+    }
+
+    // Allows us to inject a different publisher for testing
+    public static Javalin createApp(EventPublisher publisher) {
 
         Javalin app = Javalin.create();
 
@@ -60,6 +69,8 @@ public class DelayStageServiceApp {
                 try {
                     delayStageService.updateStage(hubId, stage);
 
+                    publisher.publish(hubId, stage);
+
                     ctx.json(Map.of(
                             "hubId", hubId,
                             "stage", stage
@@ -67,6 +78,10 @@ public class DelayStageServiceApp {
 
                 } catch (IllegalArgumentException e) {
                     ctx.status(400).result(e.getMessage());
+
+                } catch (Exception e) {
+                    ctx.status(503)
+                            .result("Unable to publish delay stage update");
                 }
 
             } catch (JsonProcessingException e) {
@@ -77,5 +92,3 @@ public class DelayStageServiceApp {
         return app;
     }
 }
-
-
