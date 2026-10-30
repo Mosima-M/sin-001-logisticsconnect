@@ -1,94 +1,173 @@
-# IngestionServiceApp
+# Ingestion Service
 
 ## Overview
 
-Parses and cleans `hubs-global.csv`, a messy legacy export of hubs, sorting centers, and regional districts data, and is the
-first stop in the LogisticsConnect pipeline. Independent Maven module, no parent pom.
+The Ingestion Service is responsible for reading, cleaning, and exposing hub data from the legacy `hubs-global.csv` dataset.
 
-Part of the [LogisticsConnect](../README.md) project.
+It is the first service in the LogisticsConnect system and provides standardized hub information to the Hub Service through a REST API.
 
-## Known data issues
+The service runs independently as a Maven project on port `7050`.
 
-`hubs-global.csv` is deliberately messy — cleaning it is the point of this service. Look
-out for (and handle) at least:
+## Responsibilities
 
-- **Inconsistent casing** in IDs, names, and status/category values (`Active` /
-  `active` / `ACTIVE`)
-- **Padding** — leading/trailing spaces, and the occasional double space, inside
-  fields
-- **Duplicate records** for the same real-world entity, written with a different ID
-  casing/format and/or slightly different field values
-- **Inconsistent date formats** (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD-MM-YYYY`, one- and
-  two-digit months/days) and outright invalid dates
-- **Missing / placeholder values** — blank fields, `N/A`, `n/a`, `TBD`, `unknown`,
-  `-`, `NaN`
-- **Invalid or non-numeric values** in numeric columns (negative counts, spelled-out
-  numbers, unrealistic values)
-- **Inconsistent boolean/flag representations** (`Y`/`N`, `yes`/`no`, `1`/`0`,
-  `true`/`FALSE`)
-- **Naming/spelling variants** for the same thing (e.g. regional spelling
-  differences, synonyms)
+The service performs the following operations:
 
-## Worked example
+- Reads hub records from `hubs-global.csv` using OpenCSV.
+- Removes leading and trailing whitespace.
+- Standardizes hub identifiers to uppercase.
+- Normalizes province names to a consistent format.
+- Standardizes boolean values representing active and inactive hubs.
+- Handles missing or unrecognized values.
+- Detects duplicate hub identifiers and excludes repeated records.
+- Exposes the cleaned dataset through a REST endpoint.
 
-Two raw rows from `hubs-global.csv`:
+## Data Cleaning
 
-```
-hub_id, Province ,sorting_center,active
-H-502 ,gauteng,Pretoria North,0
-H-505,Western Cape ,Cape Town  Port,TRUE
-```
+The CSV dataset contains four columns:
 
-A reasonable cleaned shape for those same two rows:
+| Column | Description |
+|---|---|
+| `hub_id` | Unique identifier for a hub |
+| `Province` | Province where the hub is located |
+| `sorting_center` | Name of the sorting center |
+| `active` | Indicates whether the hub is active |
 
-| hub_id | province | sorting_center | active |
-|---|---|---|---|
-| H-502 | Gauteng | Pretoria North | false |
-| H-505 | Western Cape | Cape Town Port | true |
+### Cleaning rules
 
-That covers padding (`H-502 ` → `H-502`), casing (`gauteng` → `Gauteng`), a
-collapsed double space (`Cape Town  Port` → `Cape Town Port`), and boolean
-normalization (`0`/`TRUE` → `false`/`true`). Column names, exact casing
-convention, and boolean representation are up to you — just be consistent.
+| Field | Cleaning approach |
+|---|---|
+| Hub ID | Trim whitespace and convert to uppercase |
+| Province | Normalize casing and known formatting variations |
+| Sorting center | Trim surrounding whitespace |
+| Active | Convert recognized true/false representations into consistent values |
+| Duplicate IDs | Retain the first occurrence of a normalized hub ID |
+| Missing or invalid flags | Represent unrecognized values as `unknown` |
 
-This doesn't cover deduplication: rows like `H-500`, `H-504`, `H-510`, and `H-515`
-all describe "Johannesburg Central" in "Gauteng" under different hub IDs, with
-conflicting `active` values between them. How you resolve that (which one wins,
-how you detect they're duplicates in the first place) is part of the exercise —
-there's no single correct answer, but be ready to explain your reasoning.
+### Example
 
-## Project structure
+**Raw CSV data:**
 
-```
-ingestion-service/
-├── pom.xml
-└── src/main/
-    ├── java/co/wethinkcode/logisticsconnect/IngestionServiceApp.java
-    └── resources/hubs-global.csv
+```csv
+hub_id,Province,sorting_center,active
+h-502 ,gauteng,Pretoria North,0
+H-505,Western Cape,Cape Town Port,TRUE
 ```
 
-## Build
+**Cleaned representation:**
 
-```
-mvn package
+```json
+[
+  {
+    "hubId": "H-502",
+    "province": "Gauteng",
+    "sortingCenter": "Pretoria North",
+    "active": "false"
+  },
+  {
+    "hubId": "H-505",
+    "province": "Western Cape",
+    "sortingCenter": "Cape Town Port",
+    "active": "true"
+  }
+]
 ```
 
-## Run
+## REST API
 
+**Base URL:** `http://localhost:7050`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Returns `OK` when the service is running |
+| GET | `/hubs` | Returns the cleaned hub records as JSON |
+
+### Example request
+
+```http
+GET http://localhost:7050/hubs
 ```
+
+The endpoint provides cleaned records that other services can consume without having to process the original CSV themselves.
+
+## Technologies
+
+- Java
+- Maven
+- Javalin
+- OpenCSV
+- Jackson (JSON serialization)
+
+## Build and Run
+
+From the `ingestion-service` directory:
+
+**Build:**
+
+```bash
+mvn clean package
+```
+
+**Run:**
+
+```bash
 java -jar target/ingestion-service.jar
 ```
 
-Listens on port `7050`. Currently just exposes `/health` — the actual CSV
-parsing/cleaning logic is a TODO.
+The service starts on port `7050`.
 
-## Test
+## Testing
 
-No automated tests yet. Manually verify it's up:
+The endpoints can be verified using PowerShell:
 
+**Health check:**
+
+```powershell
+Invoke-RestMethod http://localhost:7050/health
 ```
-curl http://localhost:7050/health   # -> OK
+
+Expected response:
+
+```text
+OK
 ```
 
-To add real tests, add JUnit 5 + the Surefire plugin to `pom.xml`, put tests under
-`src/test/java/co/wethinkcode/logisticsconnect/`, and run `mvn test`.
+**Retrieve cleaned hubs:**
+
+```powershell
+Invoke-RestMethod http://localhost:7050/hubs
+```
+
+The response should contain the normalized hub records.
+
+Run any automated tests configured for this module with:
+
+```bash
+mvn test
+```
+
+## Design Decisions
+
+### Centralized data cleaning
+
+Data cleaning is performed in the Ingestion Service rather than repeated across downstream services.
+
+This ensures that the Hub Service receives consistently formatted data.
+
+### Duplicate handling
+
+Normalized hub IDs are used to detect duplicates. The first occurrence is retained, preventing multiple records with the same identifier from appearing in the cleaned output.
+
+### In-memory processing
+
+The dataset is loaded and processed without introducing a separate database.
+
+This keeps the service lightweight and appropriate for the project's scope.
+
+## Limitations
+
+- Data is sourced from a local CSV file rather than a database.
+- Duplicate detection based on hub identifiers does not detect every possible real-world duplicate.
+- Unknown values are preserved as normalized placeholders rather than inferred.
+- The service does not provide persistent data updates through its API.
+
+For the complete system architecture and instructions for running all services, see the [main LogisticsConnect README](../README.md).
