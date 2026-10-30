@@ -486,3 +486,7 @@ Detailed documentation is available in the individual service directories:
 - [Transit Service](transit-service/README.md)
 - [AlertBot](alertbot/README.md)
 - [ActiveMQ Configuration](common/README.md)
+
+## Repository Verification
+
+Verification code: `WTC-493LJ6QR`
