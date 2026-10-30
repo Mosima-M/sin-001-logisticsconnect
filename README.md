@@ -126,6 +126,7 @@ Ensure the following tools are installed:
 - Java 17 or later
 - Maven 3.8 or later
 - Docker with Docker Compose
+- curl for testing REST endpoints
 
 The project was developed using Java 21.
 
@@ -133,7 +134,18 @@ The project was developed using Java 21.
 
 Each service must be built separately because the repository does not contain a parent Maven configuration.
 
-From the project root, build each module using PowerShell:
+From the project root, build each module using Bash:
+
+```bash
+for service in ingestion-service hub-service delay-stage-service transit-service alertbot; do
+    (
+        cd "$service" &&
+        mvn clean package
+    ) || exit 1
+done
+```
+
+On Windows PowerShell, build each module with:
 
 ```powershell
 $services = @(
@@ -167,53 +179,53 @@ Each service runs as a separate Java process and requires its own terminal.
 
 ### Step 1: Start ActiveMQ
 
-From the project root:
+From the project root, on either Linux or Windows:
 
-```powershell
+```bash
 docker compose -f common/docker-compose.yml up -d
 ```
 
 Verify the broker is running:
 
-```powershell
+```bash
 docker compose -f common/docker-compose.yml ps
 ```
 
 ### Step 2: Start the Services
 
-Open a separate terminal for each service and run the corresponding commands from the project root.
+Open a separate terminal for each service and run the corresponding commands from the project root. These commands work in Bash and PowerShell.
 
 **Terminal 1 — Ingestion Service**
 
-```powershell
+```bash
 cd ingestion-service
 java -jar target/ingestion-service.jar
 ```
 
 **Terminal 2 — Hub Service**
 
-```powershell
+```bash
 cd hub-service
 java -jar target/hub-service.jar
 ```
 
 **Terminal 3 — Delay Stage Service**
 
-```powershell
+```bash
 cd delay-stage-service
 java -jar target/delay-stage-service.jar
 ```
 
 **Terminal 4 — Transit Service**
 
-```powershell
+```bash
 cd transit-service
 java -jar target/transit-service.jar
 ```
 
 **Terminal 5 — AlertBot**
 
-```powershell
+```bash
 cd alertbot
 java -jar target/alertbot.jar
 ```
@@ -239,28 +251,100 @@ For detailed endpoint descriptions, refer to each service's README.
 
 ## End-to-End Testing
 
-The following example demonstrates the complete integration between the services.
+The following examples demonstrate the complete integration between the services using `curl`.
 
-### 1. Verify Data Ingestion
+All services and the ActiveMQ broker must be running before testing.
+
+### 1. Verify Service Health
+
+**Linux / Git Bash**
+
+```bash
+curl http://localhost:7050/health
+curl http://localhost:7051/health
+curl http://localhost:7052/health
+curl http://localhost:7053/health
+curl http://localhost:7054/health
+```
+
+**Windows PowerShell**
 
 ```powershell
-Invoke-RestMethod http://localhost:7050/hubs
+curl.exe http://localhost:7050/health
+curl.exe http://localhost:7051/health
+curl.exe http://localhost:7052/health
+curl.exe http://localhost:7053/health
+curl.exe http://localhost:7054/health
+```
+
+Expected response from each service:
+
+```text
+OK
+```
+
+### 2. Verify Data Ingestion
+
+**Linux / Git Bash**
+
+```bash
+curl http://localhost:7050/hubs
+```
+
+**Windows PowerShell**
+
+```powershell
+curl.exe http://localhost:7050/hubs
 ```
 
 Expected result: A JSON response containing cleaned hub records.
 
-### 2. Retrieve Hub Information
+### 3. Retrieve Hub Information
+
+**Linux / Git Bash**
+
+```bash
+curl http://localhost:7051/hubs/H-501
+```
+
+**Windows PowerShell**
 
 ```powershell
-Invoke-RestMethod http://localhost:7051/hubs/H-501
+curl.exe http://localhost:7051/hubs/H-501
 ```
 
 Expected result: The matching hub's information.
 
-### 3. Check Initial Transit Estimate
+### 4. Set the Initial Delay Stage
+
+Set the delay stage to `0` to establish a baseline.
+
+**Linux / Git Bash**
+
+```bash
+curl -X POST http://localhost:7052/delay-stage/H-501 \
+  -H "Content-Type: application/json" \
+  -d '{"stage":0}'
+```
+
+**Windows PowerShell**
 
 ```powershell
-Invoke-RestMethod http://localhost:7053/hubs/H-501
+Invoke-RestMethod -Method Post -Uri "http://localhost:7052/delay-stage/H-501" -ContentType "application/json" -Body '{"stage":0}'
+```
+
+### 5. Check the Initial Transit Estimate
+
+**Linux / Git Bash**
+
+```bash
+curl http://localhost:7053/hubs/H-501
+```
+
+**Windows PowerShell**
+
+```powershell
+curl.exe http://localhost:7053/hubs/H-501
 ```
 
 For delay stage `0`, the verified example is:
@@ -274,21 +358,36 @@ For delay stage `0`, the verified example is:
 }
 ```
 
-### 4. Update the Delay Stage
+### 6. Update the Delay Stage
+
+**Linux / Git Bash**
+
+```bash
+curl -X POST http://localhost:7052/delay-stage/H-501 \
+  -H "Content-Type: application/json" \
+  -d '{"stage":3}'
+```
+
+**Windows PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:7052/delay-stage/H-501" `
-  -ContentType "application/json" `
-  -Body '{"stage":3}'
+Invoke-RestMethod -Method Post -Uri "http://localhost:7052/delay-stage/H-501" -ContentType "application/json" -Body '{"stage":3}'
 ```
 
 The Delay Stage Service updates the stage and publishes an event to ActiveMQ.
 
-### 5. Verify the Updated Arrival Estimate
+### 7. Verify the Updated Arrival Estimate
+
+**Linux / Git Bash**
+
+```bash
+curl http://localhost:7053/hubs/H-501
+```
+
+**Windows PowerShell**
 
 ```powershell
-Invoke-RestMethod http://localhost:7053/hubs/H-501
+curl.exe http://localhost:7053/hubs/H-501
 ```
 
 Expected response:
@@ -304,15 +403,22 @@ Expected response:
 
 This demonstrates how delay-stage updates affect the estimated arrival window.
 
-### 6. Trigger an Alert
+### 8. Trigger an Alert
 
-Update the delay stage to `5`:
+Update the delay stage to `5`.
+
+**Linux / Git Bash**
+
+```bash
+curl -X POST http://localhost:7052/delay-stage/H-501 \
+  -H "Content-Type: application/json" \
+  -d '{"stage":5}'
+```
+
+**Windows PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:7052/delay-stage/H-501" `
-  -ContentType "application/json" `
-  -Body '{"stage":5}'
+Invoke-RestMethod -Method Post -Uri "http://localhost:7052/delay-stage/H-501" -ContentType "application/json" -Body '{"stage":5}'
 ```
 
 Check the AlertBot terminal for:
